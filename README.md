@@ -6,8 +6,9 @@ based off Yahoo Finance's recent change in layout and its API (Spring 2017).  Al
 
 Download using pip:
 
+```batch
 pip install yahoo_fin
-
+```
 
 yahoo_fin contains one module, "stock_info."  The main function within stock_info is "get_data."  This function takes a ticker symbol as input (e.g. "nflx"), and outputs a data frame containing open, close, high, low, adjusted close, and volume information.  
 
