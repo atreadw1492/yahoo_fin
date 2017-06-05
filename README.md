@@ -1,6 +1,9 @@
 # yahoo_fin
 Scrape stock price history from new (Spring 2017) Yahoo Finance layout
 
+If you're familiar with the "get_data_yahoo" method in pandas.io.data, this package's main purpose is to serve as an updated replacement
+based off Yahoo Finance's recent change in layout and its API (Spring 2017).  Also, yahoo_fin provides functionality to scrape the current stocks comprising the S&P 500, as well as well as the NASDAQ. 
+
 
 ```python
 from yahoo_fin.stock_info import get_data, tickers_sp500, tickers_nasdaq, tickers_other
