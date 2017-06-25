@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jun  3 15:58:56 2017
-
-@author: atrea
-"""
-
 import requests
 import json
 from pandas.io.json import json_normalize
@@ -13,18 +6,30 @@ import time
 import ftplib
 import io
 
-def build_url(ticker):
+def build_url(ticker, start_date = None, end_date = None):
     
-    current_seconds = round(time.time())    
-    site = "https://finance.yahoo.com/quote/" + ticker + "/history?period1=7223400&period2=" + \
-            str(current_seconds) + "&interval=1d&filter=history&frequency=1d"
+    if end_date is None:
+        end_seconds = round(time.time())    
+        
+    else:
+        end_seconds = int(pd.Timestamp(end_date).timestamp())
+        
+    if start_date is None:
+        start_seconds = 7223400    
+        
+    else:
+        start_seconds = int(pd.Timestamp(start_date).timestamp())
+        
+        
+    site = "https://finance.yahoo.com/quote/" + ticker + "/history?period1=" + str(int(start_seconds)) + "&period2=" + \
+            str(end_seconds) + "&interval=1d&filter=history&frequency=1d"
     return site
 
 
-def get_data(ticker):
+def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
 
     
-    site = build_url(ticker)
+    site = build_url(ticker , start_date , end_date)
     resp = requests.get(site)
     html = resp.content
     html = html.decode()
@@ -45,6 +50,16 @@ def get_data(ticker):
     result['date'] = result['date'].map(lambda x: pd.datetime.fromtimestamp(x).date())
     
     result['ticker'] = ticker
+
+    result = result.dropna()
+    result = result.reset_index(drop = True)
+    
+    if index_as_date:
+        result.index = result.date.copy()
+        result = result.sort_values("date")
+        del result["date"]
+
+    
 
     return result
 
@@ -102,7 +117,29 @@ def tickers_other():
     return tickers
     
 
+def get_quote_table(ticker , dict_result = True): 
+
+    site = "https://finance.yahoo.com/quote/" + ticker + "?p=" + ticker
     
+    tables = pd.read_html(site)
+
+    data = tables[1].append(tables[2])
+
+    data.columns = ["attribute" , "value"]
+
+    price_etc = [elt for elt in tables if elt.iloc[0][0] == "Previous Close"][0]
+    price_etc.columns = data.columns.copy()
+    
+    data = data.append(price_etc)
+    
+    data = data.sort_values("attribute")
+
+    if dict_result:
+        
+        result = {key : val for key,val in zip(data.attribute , data.value)}
+        return result
+        
+    return data    
     
     
     
