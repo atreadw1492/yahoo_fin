@@ -44,12 +44,12 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
     
     temp = json.loads(needed)
     result = json_normalize(temp['prices'])
-    result = result[["date","open","high","low","close","unadjclose","volume"]]
+    result = result[["date","open","high","low","close","adjclose","volume"]]
     
     # fix date field
     result['date'] = result['date'].map(lambda x: pd.datetime.fromtimestamp(x).date())
     
-    result['ticker'] = ticker
+    result['ticker'] = ticker.upper()
 
     result = result.dropna()
     result = result.reset_index(drop = True)
