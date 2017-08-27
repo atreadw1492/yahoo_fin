@@ -1,3 +1,4 @@
+
 import requests
 import json
 from pandas.io.json import json_normalize
@@ -27,7 +28,13 @@ def build_url(ticker, start_date = None, end_date = None):
 
 
 def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
-
+    '''Downloads historical stock price data into a pandas data frame 
+    
+       @param: ticker
+       @param: start_date = None
+       @param: end_date = None
+       @param: index_as_date = True
+    '''
     
     site = build_url(ticker , start_date , end_date)
     resp = requests.get(site)
@@ -66,6 +73,7 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
 
 
 def tickers_sp500():
+    '''Downloads list of tickers currently listed in the S&P 500 '''
     # get list of all S&P 500 stocks
     sp500 = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
     sp_tickers = sp500[0].tolist()
@@ -75,6 +83,8 @@ def tickers_sp500():
 
 
 def tickers_nasdaq():
+    
+    '''Downloads list of tickers currently listed in the NASDAQ'''
     
     ftp = ftplib.FTP("ftp.nasdaqtrader.com")
     ftp.login()
@@ -96,7 +106,8 @@ def tickers_nasdaq():
     
 
 def tickers_other():
-    
+    '''Downloads list of tickers currently listed in the "otherlisted.txt"
+       file on "ftp.nasdaqtrader.com" '''
     ftp = ftplib.FTP("ftp.nasdaqtrader.com")
     ftp.login()
     ftp.cwd("SymbolDirectory")
@@ -118,6 +129,13 @@ def tickers_other():
     
 
 def get_quote_table(ticker , dict_result = True): 
+    
+    '''Scrapes data elements found on Yahoo Finance's quote page 
+       of input ticker
+    
+       @param: ticker
+       @param: dict_result = True
+    '''
 
     site = "https://finance.yahoo.com/quote/" + ticker + "?p=" + ticker
     
@@ -133,6 +151,8 @@ def get_quote_table(ticker , dict_result = True):
     data = data.append(price_etc)
     
     data = data.sort_values("attribute")
+    
+    data = data.drop_duplicates().reset_index(drop = True)
 
     if dict_result:
         
@@ -141,9 +161,3 @@ def get_quote_table(ticker , dict_result = True):
         
     return data    
     
-    
-    
-    
-    
-
-
