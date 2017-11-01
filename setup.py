@@ -2,7 +2,7 @@
 from setuptools import setup
 
 setup(name='yahoo_fin',
-      version='0.1',
+      version='0.5.3',
       description="Easy download of historical stock price data from Yahoo's new look",
       url='https://github.com/atreadw1492/yahoo_fin',
       author='Andrew Treadway',
