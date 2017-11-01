@@ -1,16 +1,15 @@
 
+
 import requests
-import json
 from pandas.io.json import json_normalize
 import pandas as pd
-import time
 import ftplib
 import io
 
 def build_url(ticker, start_date = None, end_date = None):
     
-    if end_date is None:
-        end_seconds = round(time.time())    
+    if end_date is None:  
+        end_seconds = int(pd.Timestamp("now").timestamp())
         
     else:
         end_seconds = int(pd.Timestamp(end_date).timestamp())
@@ -49,7 +48,7 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
     needed = needed.strip(""","isPending":false,'""")
     needed = needed + "}"
     
-    temp = json.loads(needed)
+    temp = pd.json.loads(needed)
     result = json_normalize(temp['prices'])
     result = result[["date","open","high","low","close","adjclose","volume"]]
     
@@ -127,6 +126,19 @@ def tickers_other():
 
     return tickers
     
+    
+def tickers_dow():
+    
+    '''Downloads list of currently traded tickers on the Dow'''
+
+    site = "https://finance.yahoo.com/quote/%5EDJI/components?p=%5EDJI"
+    
+    table = pd.read_html(site)[0]
+
+    dow_tickers = sorted(table['Symbol'].tolist())
+    
+    return dow_tickers    
+    
 
 def get_quote_table(ticker , dict_result = True): 
     
@@ -141,7 +153,7 @@ def get_quote_table(ticker , dict_result = True):
     
     tables = pd.read_html(site)
 
-    data = tables[1].append(tables[2])
+    data = tables[0].append(tables[1])
 
     data.columns = ["attribute" , "value"]
 
@@ -161,3 +173,137 @@ def get_quote_table(ticker , dict_result = True):
         
     return data    
     
+    
+
+def get_stats(ticker):
+    
+    '''Scrapes information from the statistics tab on Yahoo Finance 
+       for an input ticker 
+    
+       @param: ticker
+    '''
+
+    stats_site = "https://finance.yahoo.com/quote/" + ticker + \
+                 "/key-statistics?p=" + ticker
+    
+
+    tables = pd.read_html(stats_site)
+    
+    
+    table = tables[0]
+    for elt in tables[1:]:
+        table = table.append(elt)
+
+    table.columns = ["Attribute" , "Value"]
+    
+    table = table.reset_index(drop = True)
+    
+    return table
+        
+
+def get_income_statement(ticker):
+    
+    '''Scrape income statement from Yahoo Finance for a given ticker
+    
+       @param: ticker
+    '''
+    
+    income_site = "https://finance.yahoo.com/quote/" + ticker + \
+            "/financials?p=" + ticker
+    
+
+    tables = pd.read_html(income_site , header = 0)
+    
+    table = [table for table in tables if 'Revenue' in str(table)][0]    
+    
+
+
+    return table
+        
+
+def get_balance_sheet(ticker):
+    
+    '''Scrapes balance sheet from Yahoo Finance for an input ticker 
+    
+       @param: ticker
+    '''    
+    
+    balance_sheet_site = "https://finance.yahoo.com/quote/" + ticker + \
+                         "/balance-sheet?p=" + ticker
+    
+    
+    tables = pd.read_html(balance_sheet_site , header = 0)
+    
+    table = [table for table in tables if 'Period Ending' in str(table)][0]    
+    
+
+    return table
+        
+
+def get_cash_flow(ticker):
+    
+    '''Scrapes the cash flow statement from Yahoo Finance for an input ticker 
+    
+       @param: ticker
+    '''
+    
+    cash_flow_site = "https://finance.yahoo.com/quote/" + \
+            ticker + "/cash-flow?p=" + ticker
+    
+    
+
+    tables = pd.read_html(cash_flow_site , header = 0)
+    
+    table = [table for table in tables if 'Period Ending' in str(table)][0]    
+    
+
+    return table
+
+def get_holders(ticker):
+    
+    '''Scrapes the Holders page from Yahoo Finance for an input ticker 
+    
+       @param: ticker
+    '''    
+    
+    holders_site = "https://finance.yahoo.com/quote/" + \
+                    ticker + "/holders?p=" + ticker
+    
+        
+    tables = pd.read_html(holders_site , header = 0)
+    
+       
+    table_names = ["Major Holders" , "Direct Holders (Forms 3 and 4)" ,
+                   "Top Institutional Holders" , "Top Mutual Fund Holders"]
+     
+    
+    table_mapper = {key : val for key,val in zip(table_names , tables)}
+                   
+                   
+    return table_mapper       
+
+def get_analysts_info(ticker):
+    
+    '''Scrapes the Analysts page from Yahoo Finance for an input ticker 
+    
+       @param: ticker
+    '''    
+    
+    
+    analysts_site = "https://finance.yahoo.com/quote/" + ticker + "/analysts?p=" + ticker
+    
+    tables = pd.read_html(analysts_site , header = 0)
+    
+    table_names = [table.columns[0] for table in tables]
+
+    table_mapper = {key : val for key , val in zip(table_names , tables)}
+    
+
+    return table_mapper
+        
+        
+        
+        
+        
+        
+        
