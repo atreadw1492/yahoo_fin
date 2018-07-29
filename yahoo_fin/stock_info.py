@@ -1,7 +1,7 @@
 
 
 import requests
-from pandas.io.json import json_normalize
+from pandas.io.json import json_normalize, loads
 import pandas as pd
 import ftplib
 import io
@@ -24,6 +24,14 @@ def build_url(ticker, start_date = None, end_date = None):
     site = "https://finance.yahoo.com/quote/" + ticker + "/history?period1=" + str(int(start_seconds)) + "&period2=" + \
             str(end_seconds) + "&interval=1d&filter=history&frequency=1d"
     return site
+
+def force_float(elt):
+    
+    try:
+        return float(elt)
+    except:
+        return elt
+    
 
 
 def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
@@ -48,7 +56,7 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
     needed = needed.strip(""","isPending":false,'""")
     needed = needed + "}"
     
-    temp = pd.json.loads(needed)
+    temp = loads(needed)
     result = json_normalize(temp['prices'])
     result = result[["date","open","high","low","close","adjclose","volume"]]
     
@@ -96,7 +104,7 @@ def tickers_nasdaq():
     splits = info.split("|")
     
     tickers = [x for x in splits if "N\r\n" in x]
-    tickers = [x.strip("N\r\n") for x in tickers]
+    tickers = [x.strip("N\r\n") for x in tickers if 'File' not in x]
     
     ftp.close()    
 
@@ -162,9 +170,16 @@ def get_quote_table(ticker , dict_result = True):
     
     data = data.append(price_etc)
     
+    quote_price = pd.DataFrame(["Quote Price", get_live_price(ticker)]).transpose()
+    quote_price.columns = data.columns.copy()
+    
+    data = data.append(quote_price)
+    
     data = data.sort_values("attribute")
     
     data = data.drop_duplicates().reset_index(drop = True)
+    
+    data["value"] = data.value.map(force_float)
 
     if dict_result:
         
@@ -290,7 +305,8 @@ def get_analysts_info(ticker):
     '''    
     
     
-    analysts_site = "https://finance.yahoo.com/quote/" + ticker + "/analysts?p=" + ticker
+    analysts_site = "https://finance.yahoo.com/quote/" + ticker + \
+                     "/analysts?p=" + ticker
     
     tables = pd.read_html(analysts_site , header = 0)
     
@@ -301,7 +317,95 @@ def get_analysts_info(ticker):
 
     return table_mapper
         
+
+def get_live_price(ticker):
+    
+    '''Gets the live price of input ticker
+    
+       @param: ticker
+    '''    
+    
+    df = get_data(ticker)
+    
+    return df.close[-1]
+    
+    
+def _raw_get_daily_info(site):
+       
+    tables = pd.read_html(site)  
+    
+    df = tables[1].copy()
+    
+    df.columns = tables[0].columns
+    
+    del df["52 Week Range"]
+    
+    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%")))
+   
+    
+
+    fields_to_change = [x for x in df.columns.tolist() if "Vol" in x \
+                        or x == "Market Cap"]
+    
+    for field in fields_to_change:
         
+        if type(df[field][0]) == str:
+            df[field] = df[field].str.strip("B").map(force_float)
+            df[field] = df[field].map(lambda x: x if type(x) == str 
+                                                else x * 1000000000)
+            
+            df[field] = df[field].map(lambda x: x if type(x) == float else
+                                    force_float(x.strip("M")) * 1000000)    
+    
+    return df
+    
+
+def get_day_most_active():
+    
+    return _raw_get_daily_info("https://finance.yahoo.com/most-active")
+
+def get_day_gainers():
+    
+    return _raw_get_daily_info("https://finance.yahoo.com/gainers")
+
+def get_day_losers():
+    
+    return _raw_get_daily_info("https://finance.yahoo.com/losers")
+
+
+    
+
+def get_top_crypto():
+    
+    '''Gets the top 100 Cryptocurrencies by Market Cap'''      
+
+    tables = pd.read_html("https://finance.yahoo.com/cryptocurrencies")             
+                    
+    df = tables[1].copy()
+    
+    df.columns = tables[0].columns
+    
+    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%")))
+    del df["52 Week Range"]
+    del df["1 Day Chart"]
+    
+    fields_to_change = [x for x in df.columns.tolist() if "Volume" in x \
+                        or x == "Market Cap" or x == "Circulating Supply"]
+    
+    for field in fields_to_change:
+        
+        if type(df[field][0]) == str:
+            df[field] = df[field].str.strip("B").map(force_float)
+            df[field] = df[field].map(lambda x: x if type(x) == str 
+                                                else x * 1000000000)
+            
+            df[field] = df[field].map(lambda x: x if type(x) == float else
+                                    force_float(x.strip("M")) * 1000000)
+            
+            
+                
+    return df
+                    
         
         
         
