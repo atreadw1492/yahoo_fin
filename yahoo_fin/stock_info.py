@@ -6,6 +6,15 @@ import pandas as pd
 import ftplib
 import io
 
+try:
+    from requests_html import HTMLSession
+except Exception:
+    print("""Warning - Certain functionality requires requests_html,
+             which is not installed.  Install using: 
+             pip install requests_html
+             
+             After installation, you may have to restart your Python session.""")
+
 def build_url(ticker, start_date = None, end_date = None):
     
     if end_date is None:  
@@ -325,16 +334,23 @@ def get_live_price(ticker):
        @param: ticker
     '''    
     
-    df = get_data(ticker)
+    df = get_data(ticker, end_date = pd.Timestamp.today() + pd.DateOffset(10))
+    
     
     return df.close[-1]
     
     
 def _raw_get_daily_info(site):
        
-    tables = pd.read_html(site)  
+    session = HTMLSession()
     
-    df = tables[1].copy()
+    resp = session.get(site)
+    
+    resp.html.render()
+    
+    tables = pd.read_html(resp.html.html)  
+    
+    df = tables[0].copy()
     
     df.columns = tables[0].columns
     
@@ -357,20 +373,22 @@ def _raw_get_daily_info(site):
             df[field] = df[field].map(lambda x: x if type(x) == float else
                                     force_float(x.strip("M")) * 1000000)    
     
+    session.close()
+    
     return df
     
 
 def get_day_most_active():
     
-    return _raw_get_daily_info("https://finance.yahoo.com/most-active")
+    return _raw_get_daily_info("https://finance.yahoo.com/most-active?offset=0&count=100")
 
 def get_day_gainers():
     
-    return _raw_get_daily_info("https://finance.yahoo.com/gainers")
+    return _raw_get_daily_info("https://finance.yahoo.com/gainers?offset=0&count=100")
 
 def get_day_losers():
     
-    return _raw_get_daily_info("https://finance.yahoo.com/losers")
+    return _raw_get_daily_info("https://finance.yahoo.com/losers?offset=0&count=100")
 
 
     
@@ -379,13 +397,20 @@ def get_top_crypto():
     
     '''Gets the top 100 Cryptocurrencies by Market Cap'''      
 
-    tables = pd.read_html("https://finance.yahoo.com/cryptocurrencies")             
+    session = HTMLSession()
+    
+    resp = session.get("https://finance.yahoo.com/cryptocurrencies?offset=0&count=100")
+    
+    resp.html.render()
+    
+    tables = pd.read_html(resp.html.html)               
                     
-    df = tables[1].copy()
+    df = tables[0].copy()
+
     
-    df.columns = tables[0].columns
-    
-    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%")))
+    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%").\
+                                                          strip("+").\
+                                                          replace(",", "")))
     del df["52 Week Range"]
     del df["1 Day Chart"]
     
@@ -405,9 +430,4 @@ def get_top_crypto():
             
                 
     return df
-                    
-        
-        
-        
-        
-        
+                   
