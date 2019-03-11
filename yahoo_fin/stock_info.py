@@ -8,7 +8,7 @@ import io
 
 try:
     from requests_html import HTMLSession
-except Exception:
+except ImportError:
     print("""Warning - Certain functionality requires requests_html,
              which is not installed.  Install using: 
              pip install requests_html
