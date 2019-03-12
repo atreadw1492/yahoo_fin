@@ -79,7 +79,6 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
     
     if index_as_date:
         result.index = result.date.copy()
-        result = result.sort_values("date")
         del result["date"]
 
     
@@ -337,7 +336,7 @@ def get_live_price(ticker):
     df = get_data(ticker, end_date = pd.Timestamp.today() + pd.DateOffset(10))
     
     
-    return df.close[-1]
+    return df.close[0]
     
     
 def _raw_get_daily_info(site):
