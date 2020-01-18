@@ -1,10 +1,10 @@
 from setuptools import setup
 
 setup(name='yahoo_fin',
-      version='0.8',
-      description="""Download historical stock prices, 
+      version='0.8.4',
+      description="""Download historical stock prices (daily / weekly / monthly), 
                     fundamentals data, income statements, cash flows, 
-                    analyst info ,current cryptocurrency prices, option chains,
+                    analyst info, current cryptocurrency prices, option chains,
                     and more with yahoo_fin.
                     """,
       url='http://theautomatic.net/yahoo_fin-documentation/',
