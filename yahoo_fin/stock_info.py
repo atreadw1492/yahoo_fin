@@ -1,21 +1,26 @@
 
 
 import requests
-from pandas.io.json import json_normalize, loads
 import pandas as pd
 import ftplib
 import io
+import re
 
 try:
     from requests_html import HTMLSession
 except Exception:
-    print("""Warning - Certain functionality requires requests_html,
-             which is not installed.  Install using: 
+    print("""Warning - Certain functionality 
+             requires requests_html, which is not installed.
+             
+             Install using: 
              pip install requests_html
              
              After installation, you may have to restart your Python session.""")
 
-def build_url(ticker, start_date = None, end_date = None):
+    
+base_url = "https://query1.finance.yahoo.com/v8/finance/chart/"
+
+def build_url(ticker, start_date = None, end_date = None, interval = "1d"):
     
     if end_date is None:  
         end_seconds = int(pd.Timestamp("now").timestamp())
@@ -28,11 +33,17 @@ def build_url(ticker, start_date = None, end_date = None):
         
     else:
         start_seconds = int(pd.Timestamp(start_date).timestamp())
-        
-        
-    site = "https://finance.yahoo.com/quote/" + ticker + "/history?period1=" + str(int(start_seconds)) + "&period2=" + \
-            str(end_seconds) + "&interval=1d&filter=history&frequency=1d"
-    return site
+    
+    site = base_url + ticker
+    
+    #"{}/v8/finance/chart/{}".format(self._base_url, self.ticker)
+    
+    params = {"period1": start_seconds, "period2": end_seconds,
+              "interval": interval.lower(), "events": "div,splits"}
+    
+    
+    return site, params
+
 
 def force_float(elt):
     
@@ -43,48 +54,56 @@ def force_float(elt):
     
 
 
-def get_data(ticker, start_date = None, end_date = None, index_as_date = True):
-    '''Downloads historical stock price data into a pandas data frame 
+def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
+             interval = "1d"):
+    '''Downloads historical stock price data into a pandas data frame.  Interval
+       must be "1d", "1wk", or "1mo" for daily, weekly, or monthly data.
     
        @param: ticker
        @param: start_date = None
        @param: end_date = None
        @param: index_as_date = True
+       @param: interval = "1d"
     '''
     
-    site = build_url(ticker , start_date , end_date)
-    resp = requests.get(site)
-    html = resp.content
-    html = html.decode()
+    if interval not in ("1d", "1wk", "1mo"):
+        raise AssertionError("interval must be of of '1d', '1wk', or '1mo'")
     
-    start = html.index('"HistoricalPriceStore"')
-    end = html.index("firstTradeDate")
+    # build and connect to URL
+    site, params = build_url(ticker, start_date, end_date, interval)
+    resp = requests.get(site, params = params)
     
-    needed = html[start:end]
-    needed = needed.strip('"HistoricalPriceStore":')
-    needed = needed.strip(""","isPending":false,'""")
-    needed = needed + "}"
     
-    temp = loads(needed)
-    result = json_normalize(temp['prices'])
-    result = result[["date","open","high","low","close","adjclose","volume"]]
+    if not resp.ok:
+        raise AssertionError(resp.json())
+        
     
-    # fix date field
-    result['date'] = result['date'].map(lambda x: pd.datetime.fromtimestamp(x).date())
+    # get JSON response
+    data = resp.json()
     
-    result['ticker'] = ticker.upper()
+    # get open / high / low / close data
+    frame = pd.DataFrame(data["chart"]["result"][0]["indicators"]["quote"][0])
 
-    result = result.dropna()
-    result = result.reset_index(drop = True)
+    # add in adjclose
+    frame["adjclose"] = data["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"]
     
-    if index_as_date:
-        result.index = result.date.copy()
-        result = result.sort_values("date")
-        del result["date"]
-
+    # get the date info
+    temp_time = data["chart"]["result"][0]["timestamp"]
     
-
-    return result
+    
+    frame.index = pd.to_datetime(temp_time, unit = "s")
+    frame.index = frame.index.map(lambda dt: dt.floor("d"))
+    
+    
+    frame = frame[["open", "high", "low", "close", "adjclose", "volume"]]
+        
+    frame['ticker'] = ticker.upper()
+    
+    if not index_as_date:  
+        frame = frame.reset_index()
+        frame.rename(columns = {"index": "date"}, inplace = True)
+        
+    return frame
 
 
 
@@ -92,9 +111,8 @@ def tickers_sp500():
     '''Downloads list of tickers currently listed in the S&P 500 '''
     # get list of all S&P 500 stocks
     sp500 = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
-    sp_tickers = sp500[0].tolist()
-    sp_tickers = [x for x in sp_tickers if x != "Ticker symbol"]
-
+    sp_tickers = sorted(sp500.Symbol.tolist())
+    
     return sp_tickers
 
 
@@ -114,6 +132,8 @@ def tickers_nasdaq():
     
     tickers = [x for x in splits if "N\r\n" in x]
     tickers = [x.strip("N\r\n") for x in tickers if 'File' not in x]
+    
+    tickers = sorted(list(set(tickers)))
     
     ftp.close()    
 
@@ -223,8 +243,51 @@ def get_stats(ticker):
     table = table.reset_index(drop = True)
     
     return table
-        
 
+
+
+def _parse_table(url):
+    
+    session = HTMLSession()
+    r = session.get(url)
+    
+    rows = r.html.find("div[data-test='fin-row']")
+    
+    info = [row.text.split("\n") for row in rows]
+    clean = [[inner.replace(",", "") for inner in outer] for outer in info]
+    
+
+    indexes = [[ix for ix,elt in enumerate(row) if re.search("[a-z]",elt)] for row in clean]
+
+    fixed = []
+    for ix_list,nums in zip(indexes, clean):
+        if len(ix_list) == 1:
+            fixed.append(nums)
+        else:   
+            actual_ix = ix_list[1:]
+            
+            to_add = [nums[actual_ix[i]:actual_ix[i+1]] for 
+                      i in range(len(actual_ix) - 1)]
+            
+            #for ix in range(len(to_add)):
+            #    to_add[ix][0] = nums[0] + "-" + to_add[ix][0]        
+            
+            fixed.extend(to_add)
+    
+    
+    table = pd.DataFrame(fixed).drop_duplicates().reset_index(drop = True)
+
+    headers = [span.text for span in r.html.find("div[class='D(tbhg)'] span")]
+
+    table.columns = headers
+    
+
+    session.close()
+    
+    return table
+
+
+        
 def get_income_statement(ticker):
     
     '''Scrape income statement from Yahoo Finance for a given ticker
@@ -234,16 +297,25 @@ def get_income_statement(ticker):
     
     income_site = "https://finance.yahoo.com/quote/" + ticker + \
             "/financials?p=" + ticker
-    
-
-    tables = pd.read_html(income_site , header = 0)
-    
-    table = [table for table in tables if 'Revenue' in str(table)][0]    
-    
 
 
-    return table
+    table = _parse_table(income_site)      
         
+    try:
+        names = table.Breakdown.tolist()
+        names[names.index("Basic")] = "Reported EPS - Basic"
+        names[names.index("Diluted")] = "Reported EPS - Diluted"
+        
+        names[names.index("Basic")] = "Weighted Average Shares Outstanding - Basic"
+        names[names.index("Diluted")] = "Weighted Average Shares Outstanding - Diluted"
+        
+        table["Breakdown"] = names
+        
+    except Exception:
+        pass
+    
+    return table
+    
 
 def get_balance_sheet(ticker):
     
@@ -255,13 +327,8 @@ def get_balance_sheet(ticker):
     balance_sheet_site = "https://finance.yahoo.com/quote/" + ticker + \
                          "/balance-sheet?p=" + ticker
     
-    
-    tables = pd.read_html(balance_sheet_site , header = 0)
-    
-    table = [table for table in tables if 'Period Ending' in str(table)][0]    
-    
 
-    return table
+    return _parse_table(balance_sheet_site)          
         
 
 def get_cash_flow(ticker):
@@ -275,13 +342,8 @@ def get_cash_flow(ticker):
             ticker + "/cash-flow?p=" + ticker
     
     
-
-    tables = pd.read_html(cash_flow_site , header = 0)
+    return _parse_table(cash_flow_site)          
     
-    table = [table for table in tables if 'Period Ending' in str(table)][0]    
-    
-
-    return table
 
 def get_holders(ticker):
     
@@ -346,9 +408,7 @@ def _raw_get_daily_info(site):
     
     resp = session.get(site)
     
-    resp.html.render()
-    
-    tables = pd.read_html(resp.html.html)  
+    tables = pd.read_html(resp.html.raw_html)  
     
     df = tables[0].copy()
     
@@ -357,8 +417,7 @@ def _raw_get_daily_info(site):
     del df["52 Week Range"]
     
     df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%")))
-   
-    
+     
 
     fields_to_change = [x for x in df.columns.tolist() if "Vol" in x \
                         or x == "Market Cap"]
@@ -401,9 +460,7 @@ def get_top_crypto():
     
     resp = session.get("https://finance.yahoo.com/cryptocurrencies?offset=0&count=100")
     
-    resp.html.render()
-    
-    tables = pd.read_html(resp.html.html)               
+    tables = pd.read_html(resp.html.raw_html)               
                     
     df = tables[0].copy()
 
@@ -428,6 +485,12 @@ def get_top_crypto():
                                     force_float(x.strip("M")) * 1000000)
             
             
+    session.close()        
                 
     return df
-                   
+                    
+        
+        
+        
+        
+        

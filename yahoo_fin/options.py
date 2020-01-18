@@ -20,7 +20,7 @@ def build_options_url(ticker, date = None):
 
 def get_options_chain(ticker, date = None):
     
-    """Extracts put option table for input ticker and expiration date.  If
+    """Extracts call / put option tables for input ticker and expiration date.  If
        no date is input, the default result will be the earliest expiring
        option chain from the current date.
     
@@ -73,7 +73,6 @@ def get_expiration_dates(ticker):
     
     session = HTMLSession()
     resp = session.get(site)
-    resp.html.render()
     
     html = resp.html.raw_html.decode()
     
