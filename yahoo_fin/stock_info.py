@@ -233,6 +233,7 @@ def get_stats(ticker):
 
     tables = pd.read_html(stats_site)
     
+    tables = [table for table in tables if table.shape[1] == 2]
     
     table = tables[0]
     for elt in tables[1:]:
@@ -243,6 +244,31 @@ def get_stats(ticker):
     table = table.reset_index(drop = True)
     
     return table
+
+
+
+def get_stats_valuation(ticker):
+    
+    '''Scrapes Valuation Measures table from the statistics tab on Yahoo Finance 
+       for an input ticker 
+    
+       @param: ticker
+    '''
+
+    stats_site = "https://finance.yahoo.com/quote/" + ticker + \
+                 "/key-statistics?p=" + ticker
+    
+
+    tables = pd.read_html(stats_site)
+    
+    tables = [table for table in tables if "Trailing P/E" in table.iloc[:,0].tolist()]
+    
+    
+    table = tables[0].reset_index(drop = True)
+    
+    return table
+
+
 
 
 
@@ -488,9 +514,4 @@ def get_top_crypto():
     session.close()        
                 
     return df
-                    
-        
-        
-        
-        
-        
+  
