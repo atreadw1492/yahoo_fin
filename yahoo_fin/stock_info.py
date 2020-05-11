@@ -129,10 +129,9 @@ def tickers_nasdaq():
     
     info = r.getvalue().decode()
     splits = info.split("|")
-    
     tickers = [x for x in splits if "N\r\n" in x]
-    tickers = [x.strip("N\r\n") for x in tickers if 'File' not in x]
-    
+    tickers = [x.replace("N\r\n", "") for x in tickers if 'File' not in x]
+
     tickers = sorted(list(set(tickers)))
     
     ftp.close()    
@@ -153,11 +152,9 @@ def tickers_other():
     
     info = r.getvalue().decode()
     splits = info.split("|")
-    
-    tickers = [x for x in splits if "N\r\n" in x]
-    tickers = [x.strip("N\r\n") for x in tickers]
-    tickers = [x.split("\r\n") for x in tickers]
-    tickers = [sublist for outerlist in tickers for sublist in outerlist]
+    tickers = [x for x in splits if "\r\n" in x]
+    tickers = [x.partition("\r\n")[0] for x in tickers if "NASDAQ" not in x != "\r\n"]
+
     
     ftp.close()    
 
@@ -514,4 +511,9 @@ def get_top_crypto():
     session.close()        
                 
     return df
-  
+                    
+        
+        
+        
+        
+        
