@@ -107,6 +107,118 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
 
 
 
+def get_dividends(ticker, start_date = None, end_date = None, index_as_date = True,
+             interval = "1d"):
+    '''Downloads historical dividend data into a pandas data frame.  Interval
+       must be "1d", "1wk", or "1mo" for daily, weekly, or monthly data.
+    
+       @param: ticker
+       @param: start_date = None
+       @param: end_date = None
+       @param: index_as_date = True
+       @param: interval = "1d"
+    '''
+    
+    if interval not in ("1d", "1wk", "1mo"):
+        raise AssertionError("interval must be of of '1d', '1wk', or '1mo'")
+    
+    # build and connect to URL
+    site, params = build_url(ticker, start_date, end_date, interval)
+    resp = requests.get(site, params = params)
+    
+    
+    if not resp.ok:
+        raise AssertionError(resp.json())
+        
+    
+    # get JSON response
+    data = resp.json()
+    
+    # check if there is data available for dividends
+    if "dividends" not in data["chart"]["result"][0]['events']:
+        raise AssertionError("There is no data available on dividends, or none have been granted")
+    
+    # get the dividend data
+    frame = pd.DataFrame(data["chart"]["result"][0]['events']['dividends'])
+    
+    frame = frame.transpose()
+        
+    frame.index = pd.to_datetime(frame.index, unit = "s")
+    frame.index = frame.index.map(lambda dt: dt.floor("d"))
+    
+    # sort in to chronological order
+    frame = frame.sort_index()
+        
+    frame['ticker'] = ticker.upper()
+    
+    # remove old date column
+    frame = frame.drop(columns='date')
+    
+    frame = frame.rename({'amount': 'dividend'}, axis = 'columns')
+    
+    if not index_as_date:  
+        frame = frame.reset_index()
+        frame.rename(columns = {"index": "date"}, inplace = True)
+        
+    return frame
+
+
+
+def get_splits(ticker, start_date = None, end_date = None, index_as_date = True,
+             interval = "1d"):
+    '''Downloads historical stock split data into a pandas data frame.  Interval
+       must be "1d", "1wk", or "1mo" for daily, weekly, or monthly data.
+    
+       @param: ticker
+       @param: start_date = None
+       @param: end_date = None
+       @param: index_as_date = True
+       @param: interval = "1d"
+    '''
+    
+    if interval not in ("1d", "1wk", "1mo"):
+        raise AssertionError("interval must be of of '1d', '1wk', or '1mo'")
+    
+    # build and connect to URL
+    site, params = build_url(ticker, start_date, end_date, interval)
+    resp = requests.get(site, params = params)
+    
+    
+    if not resp.ok:
+        raise AssertionError(resp.json())
+        
+    
+    # get JSON response
+    data = resp.json()
+    
+    # check if there is data available for splits
+    if "splits" not in data["chart"]["result"][0]['events']:
+        raise AssertionError("There is no data available on stock splits, or none have occured")
+    
+    # get the split data
+    frame = pd.DataFrame(data["chart"]["result"][0]['events']['splits'])
+    
+    frame = frame.transpose()
+        
+    frame.index = pd.to_datetime(frame.index, unit = "s")
+    frame.index = frame.index.map(lambda dt: dt.floor("d"))
+    
+    # sort in to chronological order
+    frame = frame.sort_index()
+        
+    frame['ticker'] = ticker.upper()
+    
+    # remove unnecessary columns
+    frame = frame.drop(columns=['date', 'denominator', 'numerator'])
+    
+    if not index_as_date:  
+        frame = frame.reset_index()
+        frame.rename(columns = {"index": "date"}, inplace = True)
+        
+    return frame
+
+
+
 def tickers_sp500():
     '''Downloads list of tickers currently listed in the S&P 500 '''
     # get list of all S&P 500 stocks
