@@ -5,6 +5,7 @@ import pandas as pd
 import ftplib
 import io
 import re
+import json
 
 try:
     from requests_html import HTMLSession
@@ -130,10 +131,10 @@ def tickers_nasdaq():
     info = r.getvalue().decode()
     splits = info.split("|")
     
-    tickers = [x for x in splits if "N\r\n" in x]
-    tickers = [x.strip("N\r\n") for x in tickers if 'File' not in x]
     
-    tickers = sorted(list(set(tickers)))
+    tickers = [x for x in splits if "\r\n" in x]
+    tickers = [x.split("\r\n")[1] for x in tickers if "NASDAQ" not in x != "\r\n"]
+    tickers = [ticker for ticker in tickers if "File" not in ticker]    
     
     ftp.close()    
 
@@ -152,12 +153,11 @@ def tickers_other():
     ftp.retrbinary('RETR otherlisted.txt', r.write)
     
     info = r.getvalue().decode()
-    splits = info.split("|")
+    splits = info.split("|")    
     
-    tickers = [x for x in splits if "N\r\n" in x]
-    tickers = [x.strip("N\r\n") for x in tickers]
-    tickers = [x.split("\r\n") for x in tickers]
-    tickers = [sublist for outerlist in tickers for sublist in outerlist]
+    tickers = [x for x in splits if "\r\n" in x]
+    tickers = [x.split("\r\n")[1] for x in tickers]
+    tickers = [ticker for ticker in tickers if "File" not in ticker]        
     
     ftp.close()    
 
@@ -272,49 +272,38 @@ def get_stats_valuation(ticker):
 
 
 
-def _parse_table(url):
-    
-    session = HTMLSession()
-    r = session.get(url)
-    
-    rows = r.html.find("div[data-test='fin-row']")
-    
-    info = [row.text.split("\n") for row in rows]
-    clean = [[inner.replace(",", "") for inner in outer] for outer in info]
-    
+def _parse_json(url):
+    html = requests.get(url=url).text
 
-    indexes = [[ix for ix,elt in enumerate(row) if re.search("[a-z]",elt)] for row in clean]
+    json_str = html.split('root.App.main =')[1].split(
+        '(this)')[0].split(';\n}')[0].strip()
+    data = json.loads(json_str)[
+        'context']['dispatcher']['stores']['QuoteSummaryStore']
 
-    fixed = []
-    for ix_list,nums in zip(indexes, clean):
-        if len(ix_list) == 1:
-            fixed.append(nums)
-        else:   
-            actual_ix = ix_list[1:]
-            
-            to_add = [nums[actual_ix[i]:actual_ix[i+1]] for 
-                      i in range(len(actual_ix) - 1)]
-            
-            #for ix in range(len(to_add)):
-            #    to_add[ix][0] = nums[0] + "-" + to_add[ix][0]        
-            
-            fixed.extend(to_add)
-    
-    
-    table = pd.DataFrame(fixed).drop_duplicates().reset_index(drop = True)
+    # return data
+    new_data = json.dumps(data).replace('{}', 'null')
+    new_data = re.sub(r'\{[\'|\"]raw[\'|\"]:(.*?),(.*?)\}', r'\1', new_data)
 
-    headers = [span.text for span in r.html.find("div[class='D(tbhg)'] span")]
+    json_info = json.loads(new_data)
 
-    table.columns = headers
-    
-
-    session.close()
-    
-    return table
+    return json_info
 
 
-        
-def get_income_statement(ticker):
+def _parse_table(json_info):
+
+    df = pd.DataFrame(json_info)
+    del df["maxAge"]
+
+    df.set_index("endDate", inplace=True)
+    df.index = pd.to_datetime(df.index, unit="s")
+ 
+    df = df.transpose()
+    df.index.name = "Breakdown"
+
+    return df
+
+
+def get_income_statement(ticker, yearly = True):
     
     '''Scrape income statement from Yahoo Finance for a given ticker
     
@@ -324,26 +313,17 @@ def get_income_statement(ticker):
     income_site = "https://finance.yahoo.com/quote/" + ticker + \
             "/financials?p=" + ticker
 
-
-    table = _parse_table(income_site)      
-        
-    try:
-        names = table.Breakdown.tolist()
-        names[names.index("Basic")] = "Reported EPS - Basic"
-        names[names.index("Diluted")] = "Reported EPS - Diluted"
-        
-        names[names.index("Basic")] = "Weighted Average Shares Outstanding - Basic"
-        names[names.index("Diluted")] = "Weighted Average Shares Outstanding - Diluted"
-        
-        table["Breakdown"] = names
-        
-    except Exception:
-        pass
+    json_info = _parse_json(income_site)
     
-    return table
+    if yearly:
+        temp = json_info["incomeStatementHistory"]["incomeStatementHistory"]
+    else:
+        temp = json_info["incomeStatementHistoryQuarterly"]["incomeStatementHistory"]
     
+    return _parse_table(temp)      
+        
 
-def get_balance_sheet(ticker):
+def get_balance_sheet(ticker, yearly = True):
     
     '''Scrapes balance sheet from Yahoo Finance for an input ticker 
     
@@ -354,10 +334,17 @@ def get_balance_sheet(ticker):
                          "/balance-sheet?p=" + ticker
     
 
-    return _parse_table(balance_sheet_site)          
+    json_info = _parse_json(balance_sheet_site)
+    
+    if yearly:
+        temp = json_info["balanceSheetHistory"]["balanceSheetStatements"]
+    else:
+        temp = json_info["balanceSheetHistoryQuarterly"]["balanceSheetStatements"]
         
+    return _parse_table(temp)      
 
-def get_cash_flow(ticker):
+
+def get_cash_flow(ticker, yearly = True):
     
     '''Scrapes the cash flow statement from Yahoo Finance for an input ticker 
     
@@ -368,8 +355,67 @@ def get_cash_flow(ticker):
             ticker + "/cash-flow?p=" + ticker
     
     
-    return _parse_table(cash_flow_site)          
+    json_info = _parse_json(cash_flow_site)
     
+    if yearly:
+        temp = json_info["cashflowStatementHistory"]["cashflowStatements"]
+    else:
+        temp = json_info["cashflowStatementHistoryQuarterly"]["cashflowStatements"]
+        
+    return _parse_table(temp)      
+
+
+def get_financials(ticker, yearly = True, quarterly = True):
+
+    '''Scrapes financials data from Yahoo Finance for an input ticker, including
+       balance sheet, cash flow statement, and income statement.  Returns dictionary
+       of results.
+    
+       @param: ticker
+       @param: yearly = True
+       @param: quarterly = True
+    '''
+
+    if not yearly and not quarterly:
+        raise AssertionError("yearly or quarterly must be True")
+    
+    financials_site = "https://finance.yahoo.com/quote/" + ticker + \
+            "/financials?p=" + ticker
+            
+    json_info = _parse_json(financials_site)
+    
+    result = {}
+    
+    if yearly:
+
+        temp = json_info["incomeStatementHistory"]["incomeStatementHistory"]
+        table = _parse_table(temp)
+        result["yearly_income_statement"] = table
+    
+        temp = json_info["balanceSheetHistory"]["balanceSheetStatements"]
+        table = _parse_table(temp)
+        result["yearly_balance_sheet"] = table
+        
+        temp = json_info["cashflowStatementHistory"]["cashflowStatements"]
+        table = _parse_table(temp)
+        result["yearly_cash_flow"] = table
+
+    if quarterly:
+        temp = json_info["incomeStatementHistoryQuarterly"]["incomeStatementHistory"]
+        table = _parse_table(temp)
+        result["quarterly_income_statement"] = table
+    
+        temp = json_info["balanceSheetHistoryQuarterly"]["balanceSheetStatements"]
+        table = _parse_table(temp)
+        result["quarterly_balance_sheet"] = table
+        
+        temp = json_info["cashflowStatementHistoryQuarterly"]["cashflowStatements"]
+        table = _parse_table(temp)
+        result["quarterly_cash_flow"] = table
+
+        
+    return result
+
 
 def get_holders(ticker):
     
@@ -514,4 +560,135 @@ def get_top_crypto():
     session.close()        
                 
     return df
-  
+                    
+        
+
+
+def get_dividends(ticker, start_date = None, end_date = None, index_as_date = True):
+    '''Downloads historical dividend data into a pandas data frame.
+    
+       @param: ticker
+       @param: start_date = None
+       @param: end_date = None
+       @param: index_as_date = True
+    '''
+    
+    # build and connect to URL
+    site, params = build_url(ticker, start_date, end_date, "1d")
+    resp = requests.get(site, params = params)
+    
+    
+    if not resp.ok:
+        raise AssertionError(resp.json())
+        
+    
+    # get JSON response
+    data = resp.json()
+    
+    # check if there is data available for dividends
+    if "dividends" not in data["chart"]["result"][0]['events']:
+        raise AssertionError("There is no data available on dividends, or none have been granted")
+    
+    # get the dividend data
+    frame = pd.DataFrame(data["chart"]["result"][0]['events']['dividends'])
+    
+    frame = frame.transpose()
+        
+    frame.index = pd.to_datetime(frame.index, unit = "s")
+    frame.index = frame.index.map(lambda dt: dt.floor("d"))
+    
+    # sort in to chronological order
+    frame = frame.sort_index()
+        
+    frame['ticker'] = ticker.upper()
+    
+    # remove old date column
+    frame = frame.drop(columns='date')
+    
+    frame = frame.rename({'amount': 'dividend'}, axis = 'columns')
+    
+    if not index_as_date:  
+        frame = frame.reset_index()
+        frame.rename(columns = {"index": "date"}, inplace = True)
+        
+    return frame
+
+
+
+def get_splits(ticker, start_date = None, end_date = None, index_as_date = True):
+    '''Downloads historical stock split data into a pandas data frame.
+    
+       @param: ticker
+       @param: start_date = None
+       @param: end_date = None
+       @param: index_as_date = True
+    '''
+    
+    # build and connect to URL
+    site, params = build_url(ticker, start_date, end_date, "1d")
+    resp = requests.get(site, params = params)
+    
+    
+    if not resp.ok:
+        raise AssertionError(resp.json())
+        
+    
+    # get JSON response
+    data = resp.json()
+    
+    # check if there is data available for splits
+    if "splits" not in data["chart"]["result"][0]['events']:
+        raise AssertionError("There is no data available on stock splits, or none have occured")
+    
+    # get the split data
+    frame = pd.DataFrame(data["chart"]["result"][0]['events']['splits'])
+    
+    frame = frame.transpose()
+        
+    frame.index = pd.to_datetime(frame.index, unit = "s")
+    frame.index = frame.index.map(lambda dt: dt.floor("d"))
+    
+    # sort in to chronological order
+    frame = frame.sort_index()
+        
+    frame['ticker'] = ticker.upper()
+    
+    # remove unnecessary columns
+    frame = frame.drop(columns=['date', 'denominator', 'numerator'])
+    
+    if not index_as_date:  
+        frame = frame.reset_index()
+        frame.rename(columns = {"index": "date"}, inplace = True)
+        
+    return frame
+        
+        
+
+
+def get_earnings(ticker):
+    
+    '''Scrapes earnings data from Yahoo Finance for an input ticker 
+    
+       @param: ticker
+    '''
+
+    financials_site = "https://finance.yahoo.com/quote/" + ticker + \
+            "/financials?p=" + ticker
+            
+    json_info = _parse_json(financials_site)
+    
+    temp = json_info["earnings"]
+    
+    result = {}
+    
+    result["quarterly_results"] = pd.DataFrame.from_dict(temp["earningsChart"]["quarterly"])
+    
+    result["yearly_revenue_earnings"] = pd.DataFrame.from_dict(temp["financialsChart"]["yearly"])
+    
+    result["quarterly_revenue_earnings"] = pd.DataFrame.from_dict(temp["financialsChart"]["quarterly"])
+    
+    return result
+
+
+
+    
