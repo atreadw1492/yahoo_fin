@@ -25,7 +25,7 @@ nflx = get_data("NFLX")
 """ pull data for Apple (AAPL) """
 """case sensitivity does not matter"""
 aapl = get_data("aapl")
-
+In
 """ get list of all stocks currently traded
     on NASDAQ exchange """
 nasdaq_ticker_list = tickers_nasdaq()
@@ -40,3 +40,17 @@ other_tickers = tickers_other()
 info = get_quote_table("amzn")
 
 ```
+
+For more in-depth tutorials on yahoo_fin, check out the following links:
+
+* Introduction & Getting historical stock prices: http://theautomatic.net/2018/01/25/coding-yahoo_fin-package/
+
+* Getting stock fundamentals data: http://theautomatic.net/2020/05/05/how-to-download-fundamentals-data-with-python/
+
+* Retrieving real-time stock prices: http://theautomatic.net/2018/07/31/how-to-get-live-stock-prices-with-python/
+
+* Getting options chains: http://theautomatic.net/2019/04/17/how-to-get-options-data-with-python/
+
+* YouTube playlist on collecting stock data: https://www.youtube.com/playlist?list=PL1EfVfbD6djHHxTzicLzdX5jzH0wEgDs7
+
+
