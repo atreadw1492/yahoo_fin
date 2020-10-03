@@ -175,7 +175,16 @@ def tickers_dow():
     dow_tickers = sorted(table['Symbol'].tolist())
     
     return dow_tickers    
+
+def tickers_ibovespa():
     
+    '''Downloads list of currently traded tickers on the Ibovespa, Brazil'''
+
+    ibovespa_tickers = pd.read_html("https://pt.wikipedia.org/wiki/Lista_de_companhias_citadas_no_Ibovespa")[0]
+    ibovespa_tickers.columns = ["Symbol", "Share", "Sector", "Type", "Site"]
+    ibovespa_tickers = sorted(ibovespa_tickers.Symbol.tolist())
+    
+    return ibovespa_tickers  
 
 def get_quote_table(ticker , dict_result = True): 
     
