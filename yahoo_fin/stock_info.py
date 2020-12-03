@@ -497,7 +497,7 @@ def _raw_get_daily_info(site):
     
     del df["52 Week Range"]
     
-    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%").replace(',','')))
+    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%+").replace(",", "")))
      
 
     fields_to_change = [x for x in df.columns.tolist() if "Vol" in x \
