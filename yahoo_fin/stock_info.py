@@ -242,7 +242,7 @@ def get_stats(ticker):
 
     tables = pd.read_html(stats_site)
     
-    tables = [table for table in tables if table.shape[1] == 2]
+    tables = [table for table in tables[1:] if table.shape[1] == 2]
     
     table = tables[0]
     for elt in tables[1:]:
