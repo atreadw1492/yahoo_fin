@@ -186,6 +186,25 @@ def tickers_ibovespa():
     
     return ibovespa_tickers  
 
+# START
+def tickers_nifty50():
+    
+    '''Downloads list of currently traded tickers on the NIFTY 50, India'''
+    
+    site = "https://finance.yahoo.com/quote/%5ENSEI/components?p=%5ENSEI"
+    table = pd.read_html(site)[0]
+    nifty50 = sorted(table['Symbol'].tolist())
+    
+    return nifty50
+
+def tickers_niftybank():
+    ''' Currently traded tickers on the NIFTY BANK, India '''
+    
+    niftybank = ['AXISBANK', 'KOTAKBANK', 'HDFCBANK', 'SBIN', 'BANKBARODA', 'INDUSINDBK', 'PNB', 'IDFCFIRSTB', 'ICICIBANK', 'RBLBANK', 'FEDERALBNK', 'BANDHANBNK']
+    
+    return niftybank
+# END
+
 def get_quote_table(ticker , dict_result = True): 
     
     '''Scrapes data elements found on Yahoo Finance's quote page 
