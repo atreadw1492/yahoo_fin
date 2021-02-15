@@ -6,6 +6,7 @@ import ftplib
 import io
 import re
 import json
+import datetime
 
 try:
     from requests_html import HTMLSession
@@ -37,8 +38,6 @@ def build_url(ticker, start_date = None, end_date = None, interval = "1d"):
     
     site = base_url + ticker
     
-    #"{}/v8/finance/chart/{}".format(self._base_url, self.ticker)
-    
     params = {"period1": start_seconds, "period2": end_seconds,
               "interval": interval.lower(), "events": "div,splits"}
     
@@ -53,12 +52,24 @@ def force_float(elt):
     except:
         return elt
     
+def _convert_to_numeric(s):
+
+    if "M" in s:
+        s = s.strip("M")
+        return force_float(s) * 1_000_000
+    
+    if "B" in s:
+        s = s.strip("B")
+        return force_float(s) * 1_000_000_000
+    
+    return force_float(s)
 
 
 def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
              interval = "1d"):
     '''Downloads historical stock price data into a pandas data frame.  Interval
-       must be "1d", "1wk", or "1mo" for daily, weekly, or monthly data.
+       must be "1d", "1wk", "1mo", or "1m" for daily, weekly, monthly, or minute data.
+       Intraday minute data is limited to 7 days.
     
        @param: ticker
        @param: start_date = None
@@ -67,8 +78,8 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
        @param: interval = "1d"
     '''
     
-    if interval not in ("1d", "1wk", "1mo"):
-        raise AssertionError("interval must be of of '1d', '1wk', or '1mo'")
+    if interval not in ("1d", "1wk", "1mo", "1m"):
+        raise AssertionError("interval must be of of '1d', '1wk', '1mo', or '1m'")
     
     # build and connect to URL
     site, params = build_url(ticker, start_date, end_date, interval)
@@ -85,18 +96,22 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
     # get open / high / low / close data
     frame = pd.DataFrame(data["chart"]["result"][0]["indicators"]["quote"][0])
 
-    # add in adjclose
-    frame["adjclose"] = data["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"]
-    
     # get the date info
     temp_time = data["chart"]["result"][0]["timestamp"]
+
+    if interval != "1m":
     
-    
-    frame.index = pd.to_datetime(temp_time, unit = "s")
-    frame.index = frame.index.map(lambda dt: dt.floor("d"))
-    
-    
-    frame = frame[["open", "high", "low", "close", "adjclose", "volume"]]
+        # add in adjclose
+        frame["adjclose"] = data["chart"]["result"][0]["indicators"]["adjclose"][0]["adjclose"]   
+        frame.index = pd.to_datetime(temp_time, unit = "s")
+        frame.index = frame.index.map(lambda dt: dt.floor("d"))
+        frame = frame[["open", "high", "low", "close", "adjclose", "volume"]]
+            
+    else:
+
+        frame.index = pd.to_datetime(temp_time, unit = "s")
+        frame = frame[["open", "high", "low", "close", "volume"]]
+        
         
     frame['ticker'] = ticker.upper()
     
@@ -108,16 +123,22 @@ def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
 
 
 
-def tickers_sp500():
+def tickers_sp500(include_company_data = False):
     '''Downloads list of tickers currently listed in the S&P 500 '''
     # get list of all S&P 500 stocks
     sp500 = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
-    sp_tickers = sorted(sp500.Symbol.tolist())
+    sp500["Symbol"] = sp500["Symbol"].str.replace(".", "-")
+
+    if include_company_data:
+        return sp500
+
+    sp_tickers = sp500.Symbol.tolist()
+    sp_tickers = sorted(sp_tickers)
     
     return sp_tickers
 
 
-def tickers_nasdaq():
+def tickers_nasdaq(include_company_data = False):
     
     '''Downloads list of tickers currently listed in the NASDAQ'''
     
@@ -127,6 +148,11 @@ def tickers_nasdaq():
     
     r = io.BytesIO()
     ftp.retrbinary('RETR nasdaqlisted.txt', r.write)
+    
+    if include_company_data:
+        r.seek(0)
+        data = pd.read_csv(r, sep = "|")
+        return data
     
     info = r.getvalue().decode()
     splits = info.split("|")
@@ -142,7 +168,7 @@ def tickers_nasdaq():
     
     
 
-def tickers_other():
+def tickers_other(include_company_data = False):
     '''Downloads list of tickers currently listed in the "otherlisted.txt"
        file on "ftp.nasdaqtrader.com" '''
     ftp = ftplib.FTP("ftp.nasdaqtrader.com")
@@ -151,6 +177,11 @@ def tickers_other():
     
     r = io.BytesIO()
     ftp.retrbinary('RETR otherlisted.txt', r.write)
+    
+    if include_company_data:
+        r.seek(0)
+        data = pd.read_csv(r, sep = "|")
+        return data
     
     info = r.getvalue().decode()
     splits = info.split("|")    
@@ -164,37 +195,50 @@ def tickers_other():
     return tickers
     
     
-def tickers_dow():
+def tickers_dow(include_company_data = False):
     
     '''Downloads list of currently traded tickers on the Dow'''
 
     site = "https://finance.yahoo.com/quote/%5EDJI/components?p=%5EDJI"
     
     table = pd.read_html(site)[0]
+    
+    if include_company_data:
+        return table
 
     dow_tickers = sorted(table['Symbol'].tolist())
     
     return dow_tickers    
+    
 
-def tickers_ibovespa():
+def tickers_ibovespa(include_company_data = False):
     
     '''Downloads list of currently traded tickers on the Ibovespa, Brazil'''
 
-    ibovespa_tickers = pd.read_html("https://pt.wikipedia.org/wiki/Lista_de_companhias_citadas_no_Ibovespa")[0]
-    ibovespa_tickers.columns = ["Symbol", "Share", "Sector", "Type", "Site"]
-    ibovespa_tickers = sorted(ibovespa_tickers.Symbol.tolist())
+    table = pd.read_html("https://pt.wikipedia.org/wiki/Lista_de_companhias_citadas_no_Ibovespa")[0]
+    table.columns = ["Symbol", "Share", "Sector", "Type", "Site"]
     
-    return ibovespa_tickers  
+    if include_company_data:
+        return table
+    
+    ibovespa_tickers = sorted(table.Symbol.tolist())
+    
+    return ibovespa_tickers 
 
-# START
-def tickers_nifty50():
-    
+
+
+def tickers_nifty50(include_company_data = False):
+
     '''Downloads list of currently traded tickers on the NIFTY 50, India'''
-    
+
     site = "https://finance.yahoo.com/quote/%5ENSEI/components?p=%5ENSEI"
     table = pd.read_html(site)[0]
-    nifty50 = sorted(table['Symbol'].tolist())
     
+    if include_company_data:
+        return table
+    
+    nifty50 = sorted(table['Symbol'].tolist())
+
     return nifty50
 
 def tickers_niftybank():
@@ -203,7 +247,37 @@ def tickers_niftybank():
     niftybank = ['AXISBANK', 'KOTAKBANK', 'HDFCBANK', 'SBIN', 'BANKBARODA', 'INDUSINDBK', 'PNB', 'IDFCFIRSTB', 'ICICIBANK', 'RBLBANK', 'FEDERALBNK', 'BANDHANBNK']
     
     return niftybank
-# END
+
+
+
+def tickers_ftse100(include_company_data = False):
+    
+    '''Downloads a list of the tickers traded on the FTSE 100 index'''
+    
+    table = pd.read_html("https://en.wikipedia.org/wiki/FTSE_100_Index", attrs = {"id": "constituents"})[0]
+    
+    if include_company_data:
+        return table
+    
+    return sorted(table.EPIC.tolist())
+    
+
+def tickers_ftse250(include_company_data = False):
+    
+    
+    '''Downloads a list of the tickers traded on the FTSE 250 index'''
+    
+    table = pd.read_html("https://en.wikipedia.org/wiki/FTSE_250_Index", attrs = {"id": "constituents"})[0]
+    
+    table.columns = ["Company", "Ticker"]
+    
+    if include_company_data:
+        return table
+    
+    return sorted(table.Ticker.tolist())
+    
+
+
 
 def get_quote_table(ticker , dict_result = True): 
     
@@ -221,11 +295,6 @@ def get_quote_table(ticker , dict_result = True):
     data = tables[0].append(tables[1])
 
     data.columns = ["attribute" , "value"]
-
-    price_etc = [elt for elt in tables if elt.iloc[0][0] == "Previous Close"][0]
-    price_etc.columns = data.columns.copy()
-    
-    data = data.append(price_etc)
     
     quote_price = pd.DataFrame(["Quote Price", get_live_price(ticker)]).transpose()
     quote_price.columns = data.columns.copy()
@@ -246,7 +315,6 @@ def get_quote_table(ticker , dict_result = True):
     return data    
     
     
-
 def get_stats(ticker):
     
     '''Scrapes information from the statistics tab on Yahoo Finance 
@@ -272,7 +340,6 @@ def get_stats(ticker):
     table = table.reset_index(drop = True)
     
     return table
-
 
 
 def get_stats_valuation(ticker):
@@ -525,13 +592,8 @@ def _raw_get_daily_info(site):
     for field in fields_to_change:
         
         if type(df[field][0]) == str:
-            df[field] = df[field].str.strip("B").map(force_float)
-            df[field] = df[field].map(lambda x: x if type(x) == str 
-                                                else x * 1000000000)
+            df[field] = df[field].map(_convert_to_numeric)
             
-            df[field] = df[field].map(lambda x: x if type(x) == float else
-                                    force_float(x.strip("M")) * 1000000)    
-    
     session.close()
     
     return df
@@ -549,8 +611,6 @@ def get_day_losers():
     
     return _raw_get_daily_info("https://finance.yahoo.com/losers?offset=0&count=100")
 
-
-    
 
 def get_top_crypto():
     
@@ -577,12 +637,7 @@ def get_top_crypto():
     for field in fields_to_change:
         
         if type(df[field][0]) == str:
-            df[field] = df[field].str.strip("B").map(force_float)
-            df[field] = df[field].map(lambda x: x if type(x) == str 
-                                                else x * 1000000000)
-            
-            df[field] = df[field].map(lambda x: x if type(x) == float else
-                                    force_float(x.strip("M")) * 1000000)
+            df[field] = df[field].map(_convert_to_numeric)
             
             
     session.close()        
@@ -590,8 +645,6 @@ def get_top_crypto():
     return df
                     
         
-
-
 def get_dividends(ticker, start_date = None, end_date = None, index_as_date = True):
     '''Downloads historical dividend data into a pandas data frame.
     
@@ -625,7 +678,7 @@ def get_dividends(ticker, start_date = None, end_date = None, index_as_date = Tr
     frame.index = pd.to_datetime(frame.index, unit = "s")
     frame.index = frame.index.map(lambda dt: dt.floor("d"))
     
-    # sort in to chronological order
+    # sort in chronological order
     frame = frame.sort_index()
         
     frame['ticker'] = ticker.upper()
@@ -719,4 +772,200 @@ def get_earnings(ticker):
 
 
 
+### Earnings functions
+def _parse_earnings_json(url):
+        resp = requests.get(url)
+        
+        content = resp.content.decode(encoding='utf-8', errors='strict')
+        
+        page_data = [row for row in content.split(
+            '\n') if row.startswith('root.App.main = ')][0][:-1]
+        
+        page_data = page_data.split('root.App.main = ', 1)[1]
+        
+        return json.loads(page_data)
+
+def get_next_earnings_date(ticker):
+        
+    base_earnings_url = 'https://finance.yahoo.com/quote'
+    new_url = base_earnings_url + "/" + ticker
+
+    parsed_result = _parse_earnings_json(new_url)
+    
+    temp = parsed_result['context']['dispatcher']['stores']['QuoteSummaryStore']['calendarEvents']['earnings']['earningsDate'][0]['raw']
+
+    return datetime.datetime.fromtimestamp(temp)
+
+
+def get_earnings_history(ticker):
+    
+        '''Inputs: @ticker
+           Returns the earnings calendar history of the input ticker with 
+           EPS actual vs. expected data.'''
+
+        url = 'https://finance.yahoo.com/calendar/earnings?symbol=' + ticker
+         
+        result = _parse_earnings_json(url)
+        
+        return result["context"]["dispatcher"]["stores"]["ScreenerResultsStore"]["results"]["rows"]
+
+
+
+def get_earnings_for_date(date, offset = 0, count = 1):
+
+    '''Inputs: @date
+       Returns a dictionary of stock tickers with earnings expected on the
+       input date.  The dictionary contains the expected EPS values for each
+       stock if available.'''
+    
+    base_earnings_url = 'https://finance.yahoo.com/calendar/earnings'
+    
+    if offset >= count:
+        return []
+    
+    temp = pd.Timestamp(date)
+    date = temp.strftime("%Y-%m-%d")
+
+    dated_url = '{0}?day={1}&offset={2}&size={3}'.format(
+        base_earnings_url, date, offset, 100)
+    
+    result = _parse_earnings_json(dated_url)
+    
+    stores = result['context']['dispatcher']['stores']
+    
+    earnings_count = stores['ScreenerCriteriaStore']['meta']['total']
+
+    new_offset = offset + 100
+    
+    more_earnings = get_earnings_for_date(date, new_offset, earnings_count)
+    
+    current_earnings = stores['ScreenerResultsStore']['results']['rows']
+
+    total_earnings = current_earnings + more_earnings
+
+    return total_earnings
+
+
+def get_earnings_in_date_range(start_date, end_date):
+
+        '''Inputs: @start_date
+                   @end_date
+                   
+           Returns the stock tickers with expected EPS data for all dates in the
+           input range (inclusive of the start_date and end_date.'''
+    
+        earnings_data = []
+
+        days_diff = pd.Timestamp(end_date) - pd.Timestamp(start_date)
+        days_diff = days_diff.days
+
+        
+        current_date = pd.Timestamp(start_date)
+        
+        dates = [current_date + datetime.timedelta(diff) for diff in range(days_diff + 1)]
+        dates = [d.strftime("%Y-%m-%d") for d in dates]
+ 
+        i = 0
+        while i < len(dates):
+            try:
+                earnings_data += get_earnings_for_date(dates[i])
+            except Exception:
+                pass
+            
+            i += 1
+            
+        return earnings_data
+
+
+def get_currencies():
+    
+    '''Returns the currencies table from Yahoo Finance'''
+    
+    tables = pd.read_html("https://finance.yahoo.com/currencies")
+    
+    result = tables[0]
+    
+    return result
+
+
+def get_futures():
+    
+    '''Returns the futures table from Yahoo Finance'''
+    
+    tables = pd.read_html("https://finance.yahoo.com/commodities")
+    
+    result = tables[0]
+    
+    return result
+
+
+def get_undervalued_large_caps():
+    
+    '''Returns the undervalued large caps table from Yahoo Finance'''
+    
+    tables = pd.read_html("https://finance.yahoo.com/screener/predefined/undervalued_large_caps?offset=0&count=100")
+    
+    result = tables[0]
+    
+    return result
+
+
+def get_quote_data(ticker):
+    
+    '''Inputs: @ticker
+    
+       Returns a dictionary containing over 70 elements corresponding to the 
+       input ticker, including company name, book value, moving average data,
+       pre-market / post-market price (when applicable), and more.'''
+    
+    site = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + ticker
+    
+    resp = requests.get(site)
+    
+    if not resp.ok:
+        raise AssertionError("""Invalid response from server.  Check if ticker is
+                              valid.""")
+    
+    
+    json_result = resp.json()
+    info = json_result["quoteResponse"]["result"]
+    
+    return info[0]
+    
+
+def get_market_status():
+    
+    '''Returns the current state of the market - PRE, POST, OPEN, or CLOSED'''
+    
+    quote_data = get_quote_data("^dji")
+
+    return quote_data["marketState"]
+
+def get_premarket_price(ticker):
+
+    '''Inputs: @ticker
+    
+       Returns the current pre-market price of the input ticker
+       (returns value if pre-market price is available.'''
+    
+    quote_data = get_quote_data(ticker)
+    
+    if "preMarketPrice" in quote_data:
+        return quote_data["preMarketPrice"]
+        
+    raise AssertionError("Premarket price not currently available.")
+
+def get_postmarket_price(ticker):
+
+    '''Inputs: @ticker
+    
+       Returns the current post-market price of the input ticker
+       (returns value if pre-market price is available.'''
+    
+    quote_data = get_quote_data(ticker)
+    
+    if "postMarketPrice" in quote_data:
+        return quote_data["postMarketPrice"]
+    
+    raise AssertionError("Postmarket price not currently available.")
     
