@@ -599,17 +599,18 @@ def _raw_get_daily_info(site):
     return df
     
 
-def get_day_most_active():
-    
-    return _raw_get_daily_info("https://finance.yahoo.com/most-active?offset=0&count=100")
+def get_day_most_active(count: int = 100):
+    return _raw_get_daily_info(f"https://finance.yahoo.com/most-active?offset=0&count={count}")
 
-def get_day_gainers():
-    
-    return _raw_get_daily_info("https://finance.yahoo.com/gainers?offset=0&count=100")
 
-def get_day_losers():
-    
-    return _raw_get_daily_info("https://finance.yahoo.com/losers?offset=0&count=100")
+def get_day_gainers(count: int = 100):
+
+    return _raw_get_daily_info(f"https://finance.yahoo.com/gainers?offset=0&count={count}")
+
+
+def get_day_losers(count: int = 100):
+
+    return _raw_get_daily_info(f"https://finance.yahoo.com/losers?offset=0&count={count}")
 
 
 def get_top_crypto():
