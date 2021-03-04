@@ -600,6 +600,7 @@ def _raw_get_daily_info(site):
     
 
 def get_day_most_active(count: int = 100):
+
     return _raw_get_daily_info(f"https://finance.yahoo.com/most-active?offset=0&count={count}")
 
 
