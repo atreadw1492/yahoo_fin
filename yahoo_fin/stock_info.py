@@ -372,21 +372,29 @@ def _parse_json(url):
 
     json_str = html.split('root.App.main =')[1].split(
         '(this)')[0].split(';\n}')[0].strip()
-    data = json.loads(json_str)[
-        'context']['dispatcher']['stores']['QuoteSummaryStore']
+    
+    try:
+        data = json.loads(json_str)[
+            'context']['dispatcher']['stores']['QuoteSummaryStore']
+    except:
+        return '{}'
+    else:
+        # return data
+        new_data = json.dumps(data).replace('{}', 'null')
+        new_data = re.sub(r'\{[\'|\"]raw[\'|\"]:(.*?),(.*?)\}', r'\1', new_data)
 
-    # return data
-    new_data = json.dumps(data).replace('{}', 'null')
-    new_data = re.sub(r'\{[\'|\"]raw[\'|\"]:(.*?),(.*?)\}', r'\1', new_data)
+        json_info = json.loads(new_data)
 
-    json_info = json.loads(new_data)
-
-    return json_info
+        return json_info
 
 
 def _parse_table(json_info):
 
     df = pd.DataFrame(json_info)
+    
+    if df.empty:
+        return df
+    
     del df["maxAge"]
 
     df.set_index("endDate", inplace=True)
@@ -431,10 +439,13 @@ def get_balance_sheet(ticker, yearly = True):
 
     json_info = _parse_json(balance_sheet_site)
     
-    if yearly:
-        temp = json_info["balanceSheetHistory"]["balanceSheetStatements"]
-    else:
-        temp = json_info["balanceSheetHistoryQuarterly"]["balanceSheetStatements"]
+    try:
+        if yearly:
+            temp = json_info["balanceSheetHistory"]["balanceSheetStatements"]
+        else:
+            temp = json_info["balanceSheetHistoryQuarterly"]["balanceSheetStatements"]
+    except:
+        temp = []
         
     return _parse_table(temp)      
 
