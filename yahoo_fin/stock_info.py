@@ -764,21 +764,24 @@ def get_earnings(ticker):
        @param: ticker
     '''
 
+    result = {
+        "quarterly_results": pd.DataFrame(),
+        "yearly_revenue_earnings": pd.DataFrame(),
+        "quarterly_revenue_earnings": pd.DataFrame()
+    }
+
     financials_site = "https://finance.yahoo.com/quote/" + ticker + \
-            "/financials?p=" + ticker
-            
+        "/financials?p=" + ticker
+
     json_info = _parse_json(financials_site)
-    
+
+    if "earnings" not in json_info:
+        return result
+
     temp = json_info["earnings"]
-    
+
     if temp == None:
-        return {
-            "quarterly_results": pd.DataFrame(),
-            "yearly_revenue_earnings": pd.DataFrame(),
-            "quarterly_revenue_earnings": pd.DataFrame()
-        }
-    
-    result = {}
+        return result
     
     result["quarterly_results"] = pd.DataFrame.from_dict(temp["earningsChart"]["quarterly"])
     
