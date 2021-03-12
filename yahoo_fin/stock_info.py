@@ -678,8 +678,8 @@ def get_dividends(ticker, start_date = None, end_date = None, index_as_date = Tr
     data = resp.json()
     
     # check if there is data available for dividends
-    if "dividends" not in data["chart"]["result"][0]['events']:
-        raise AssertionError("There is no data available on dividends, or none have been granted")
+    if "events" not in data["chart"]["result"][0] or "dividends" not in data["chart"]["result"][0]['events']:
+        return pd.DataFrame()
     
     # get the dividend data
     frame = pd.DataFrame(data["chart"]["result"][0]['events']['dividends'])
@@ -770,6 +770,13 @@ def get_earnings(ticker):
     json_info = _parse_json(financials_site)
     
     temp = json_info["earnings"]
+    
+    if temp == None:
+        return {
+            "quarterly_results": pd.DataFrame(),
+            "yearly_revenue_earnings": pd.DataFrame(),
+            "quarterly_revenue_earnings": pd.DataFrame()
+        }
     
     result = {}
     
