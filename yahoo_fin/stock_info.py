@@ -671,7 +671,7 @@ def get_dividends(ticker, start_date = None, end_date = None, index_as_date = Tr
     
     
     if not resp.ok:
-        raise AssertionError(resp.json())
+        return pd.DataFrame()
         
     
     # get JSON response
