@@ -199,9 +199,9 @@ def tickers_dow(include_company_data = False):
     
     '''Downloads list of currently traded tickers on the Dow'''
 
-    site = "https://finance.yahoo.com/quote/%5EDJI/components?p=%5EDJI"
+    site = "https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average"
     
-    table = pd.read_html(site)[0]
+    table = pd.read_html(site, attrs = {"id":"constituents"})[0]
     
     if include_company_data:
         return table
