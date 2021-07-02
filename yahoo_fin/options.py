@@ -1,6 +1,7 @@
 
 
 import pandas as pd
+import requests
 
 try:
     from requests_html import HTMLSession
@@ -18,7 +19,7 @@ def build_options_url(ticker, date = None):
 
     return url
 
-def get_options_chain(ticker, date = None):
+def get_options_chain(ticker, date = None, useragent='Mozilla/5.0'):
     
     """Extracts call / put option tables for input ticker and expiration date.  If
        no date is input, the default result will be the earliest expiring
@@ -29,13 +30,28 @@ def get_options_chain(ticker, date = None):
     
     site = build_options_url(ticker, date)
     
-    tables = pd.read_html(site)
+    tables = pd.read_html(requests.get(site, headers={'User-agent': useragent}).text)
 
+    if len(tables) == 1:
+        calls = tables[0].copy()
+        puts = pd.DataFrame(columns = calls.columns)
+    else:
+        calls = tables[0].copy()
+        puts = tables[1].copy()
     
-    calls = tables[0].copy()
-    puts = tables[1].copy()
+    if not raw:
+        calls["% Change"] = calls["% Change"].str.strip("%").map(force_float)
+        calls["% Change"] = calls["% Change"].map(lambda num: num / 100 if isinstance(num, float) else 0)
+        calls["Volume"] = calls["Volume"].str.replace("-", "0").map(force_float)
+        calls["Open Interest"] = calls["Open Interest"].str.replace("-", "0").map(force_float)
+        
+        
+        puts["% Change"] = puts["% Change"].str.strip("%").map(force_float)
+        puts["% Change"] = puts["% Change"].map(lambda num: num / 100 if isinstance(num, float) else 0)
+        puts["Volume"] =puts["Volume"].str.replace("-", "0").map(force_float)
+        puts["Open Interest"] = puts["Open Interest"].str.replace("-", "0").map(force_float)
     
-    return {"calls": calls, "puts":puts}    
+    return {"calls": calls, "puts":puts}
     
     
 def get_calls(ticker, date = None):
