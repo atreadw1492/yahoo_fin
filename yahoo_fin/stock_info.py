@@ -638,9 +638,9 @@ def get_top_crypto():
     df = tables[0].copy()
 
     
-    df["% Change"] = df["% Change"].map(lambda x: float(x.strip("%").\
-                                                          strip("+").\
-                                                          replace(",", "")))
+    df["% Change"] = df["% Change"].map(lambda x: float(str(x).strip("%").\
+                                                               strip("+").\
+                                                               replace(",", "")))
     del df["52 Week Range"]
     del df["1 Day Chart"]
     
@@ -650,7 +650,7 @@ def get_top_crypto():
     for field in fields_to_change:
         
         if type(df[field][0]) == str:
-            df[field] = df[field].map(_convert_to_numeric)
+            df[field] = df[field].map(lambda x: _convert_to_numeric(str(x)))
             
             
     session.close()        
