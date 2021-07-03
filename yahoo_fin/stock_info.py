@@ -372,21 +372,29 @@ def _parse_json(url):
 
     json_str = html.split('root.App.main =')[1].split(
         '(this)')[0].split(';\n}')[0].strip()
-    data = json.loads(json_str)[
-        'context']['dispatcher']['stores']['QuoteSummaryStore']
+    
+    try:
+        data = json.loads(json_str)[
+            'context']['dispatcher']['stores']['QuoteSummaryStore']
+    except:
+        return '{}'
+    else:
+        # return data
+        new_data = json.dumps(data).replace('{}', 'null')
+        new_data = re.sub(r'\{[\'|\"]raw[\'|\"]:(.*?),(.*?)\}', r'\1', new_data)
 
-    # return data
-    new_data = json.dumps(data).replace('{}', 'null')
-    new_data = re.sub(r'\{[\'|\"]raw[\'|\"]:(.*?),(.*?)\}', r'\1', new_data)
+        json_info = json.loads(new_data)
 
-    json_info = json.loads(new_data)
-
-    return json_info
+        return json_info
 
 
 def _parse_table(json_info):
 
     df = pd.DataFrame(json_info)
+    
+    if df.empty:
+        return df
+    
     del df["maxAge"]
 
     df.set_index("endDate", inplace=True)
@@ -431,10 +439,13 @@ def get_balance_sheet(ticker, yearly = True):
 
     json_info = _parse_json(balance_sheet_site)
     
-    if yearly:
-        temp = json_info["balanceSheetHistory"]["balanceSheetStatements"]
-    else:
-        temp = json_info["balanceSheetHistoryQuarterly"]["balanceSheetStatements"]
+    try:
+        if yearly:
+            temp = json_info["balanceSheetHistory"]["balanceSheetStatements"]
+        else:
+            temp = json_info["balanceSheetHistoryQuarterly"]["balanceSheetStatements"]
+    except:
+        temp = []
         
     return _parse_table(temp)      
 
@@ -662,15 +673,15 @@ def get_dividends(ticker, start_date = None, end_date = None, index_as_date = Tr
     
     
     if not resp.ok:
-        raise AssertionError(resp.json())
+        return pd.DataFrame()
         
     
     # get JSON response
     data = resp.json()
     
     # check if there is data available for dividends
-    if "dividends" not in data["chart"]["result"][0]['events']:
-        raise AssertionError("There is no data available on dividends, or none have been granted")
+    if "events" not in data["chart"]["result"][0] or "dividends" not in data["chart"]["result"][0]['events']:
+        return pd.DataFrame()
     
     # get the dividend data
     frame = pd.DataFrame(data["chart"]["result"][0]['events']['dividends'])
@@ -755,14 +766,24 @@ def get_earnings(ticker):
        @param: ticker
     '''
 
+    result = {
+        "quarterly_results": pd.DataFrame(),
+        "yearly_revenue_earnings": pd.DataFrame(),
+        "quarterly_revenue_earnings": pd.DataFrame()
+    }
+
     financials_site = "https://finance.yahoo.com/quote/" + ticker + \
-            "/financials?p=" + ticker
-            
+        "/financials?p=" + ticker
+
     json_info = _parse_json(financials_site)
-    
+
+    if "earnings" not in json_info:
+        return result
+
     temp = json_info["earnings"]
-    
-    result = {}
+
+    if temp == None:
+        return result
     
     result["quarterly_results"] = pd.DataFrame.from_dict(temp["earningsChart"]["quarterly"])
     
