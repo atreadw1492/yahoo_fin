@@ -1,12 +1,21 @@
 
 
 import pandas as pd
+import numpy as np
 import requests
 
 try:
     from requests_html import HTMLSession
 except Exception:
     pass
+
+
+def force_float(elt):
+    
+    try:
+        return float(elt)
+    except:
+        return elt
 
 def build_options_url(ticker, date = None):
     
@@ -19,7 +28,7 @@ def build_options_url(ticker, date = None):
 
     return url
 
-def get_options_chain(ticker, date = None, useragent='Mozilla/5.0'):
+def get_options_chain(ticker, date = None, raw = True, headers = {'User-agent': 'Mozilla/5.0'}):
     
     """Extracts call / put option tables for input ticker and expiration date.  If
        no date is input, the default result will be the earliest expiring
@@ -30,8 +39,8 @@ def get_options_chain(ticker, date = None, useragent='Mozilla/5.0'):
     
     site = build_options_url(ticker, date)
     
-    tables = pd.read_html(requests.get(site, headers={'User-agent': useragent}).text)
-
+    tables = pd.read_html(requests.get(site, headers=headers).text)
+    
     if len(tables) == 1:
         calls = tables[0].copy()
         puts = pd.DataFrame(columns = calls.columns)
@@ -50,8 +59,10 @@ def get_options_chain(ticker, date = None, useragent='Mozilla/5.0'):
         puts["% Change"] = puts["% Change"].map(lambda num: num / 100 if isinstance(num, float) else 0)
         puts["Volume"] =puts["Volume"].str.replace("-", "0").map(force_float)
         puts["Open Interest"] = puts["Open Interest"].str.replace("-", "0").map(force_float)
+        
     
-    return {"calls": calls, "puts":puts}
+    
+    return {"calls": calls, "puts":puts}    
     
     
 def get_calls(ticker, date = None):
