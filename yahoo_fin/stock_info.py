@@ -1,5 +1,3 @@
-
-
 import requests
 import pandas as pd
 import ftplib
@@ -279,7 +277,7 @@ def tickers_ftse250(include_company_data = False):
 
 
 
-def get_quote_table(ticker , dict_result = True): 
+def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozilla/5.0'}): 
     
     '''Scrapes data elements found on Yahoo Finance's quote page 
        of input ticker
@@ -290,8 +288,8 @@ def get_quote_table(ticker , dict_result = True):
 
     site = "https://finance.yahoo.com/quote/" + ticker + "?p=" + ticker
     
-    tables = pd.read_html(site)
-
+    tables = pd.read_html(requests.get(site, headers=headers).text)
+    
     data = tables[0].append(tables[1])
 
     data.columns = ["attribute" , "value"]
@@ -315,7 +313,7 @@ def get_quote_table(ticker , dict_result = True):
     return data    
     
     
-def get_stats(ticker):
+def get_stats(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Scrapes information from the statistics tab on Yahoo Finance 
        for an input ticker 
@@ -327,7 +325,7 @@ def get_stats(ticker):
                  "/key-statistics?p=" + ticker
     
 
-    tables = pd.read_html(stats_site)
+    tables = pd.read_html(requests.get(stats_site, headers=headers).text)
     
     tables = [table for table in tables[1:] if table.shape[1] == 2]
     
@@ -342,7 +340,7 @@ def get_stats(ticker):
     return table
 
 
-def get_stats_valuation(ticker):
+def get_stats_valuation(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Scrapes Valuation Measures table from the statistics tab on Yahoo Finance 
        for an input ticker 
@@ -353,8 +351,8 @@ def get_stats_valuation(ticker):
     stats_site = "https://finance.yahoo.com/quote/" + ticker + \
                  "/key-statistics?p=" + ticker
     
-
-    tables = pd.read_html(stats_site)
+    
+    tables = pd.read_html(requests.get(stats_site, headers=headers).text)
     
     tables = [table for table in tables if "Trailing P/E" in table.iloc[:,0].tolist()]
     
@@ -367,8 +365,8 @@ def get_stats_valuation(ticker):
 
 
 
-def _parse_json(url):
-    html = requests.get(url=url).text
+def _parse_json(url, headers = {'User-agent': 'Mozilla/5.0'}):
+    html = requests.get(url=url, headers = headers).text
 
     json_str = html.split('root.App.main =')[1].split(
         '(this)')[0].split(';\n}')[0].strip()
@@ -523,7 +521,7 @@ def get_financials(ticker, yearly = True, quarterly = True):
     return result
 
 
-def get_holders(ticker):
+def get_holders(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Scrapes the Holders page from Yahoo Finance for an input ticker 
     
@@ -534,7 +532,7 @@ def get_holders(ticker):
                     ticker + "/holders?p=" + ticker
     
         
-    tables = pd.read_html(holders_site , header = 0)
+    tables = pd.read_html(requests.get(holders_site, headers=headers).text)
     
        
     table_names = ["Major Holders" , "Direct Holders (Forms 3 and 4)" ,
@@ -546,7 +544,7 @@ def get_holders(ticker):
                    
     return table_mapper       
 
-def get_analysts_info(ticker):
+def get_analysts_info(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Scrapes the Analysts page from Yahoo Finance for an input ticker 
     
@@ -557,7 +555,7 @@ def get_analysts_info(ticker):
     analysts_site = "https://finance.yahoo.com/quote/" + ticker + \
                      "/analysts?p=" + ticker
     
-    tables = pd.read_html(analysts_site , header = 0)
+    tables = pd.read_html(requests.get(analysts_site, headers=headers).text)
     
     table_names = [table.columns[0] for table in tables]
 
@@ -900,33 +898,37 @@ def get_earnings_in_date_range(start_date, end_date):
         return earnings_data
 
 
-def get_currencies():
+def get_currencies(headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Returns the currencies table from Yahoo Finance'''
     
-    tables = pd.read_html("https://finance.yahoo.com/currencies")
+    site = "https://finance.yahoo.com/currencies"
+    tables = pd.read_html(requests.get(site, headers=headers).text)
     
     result = tables[0]
     
     return result
 
 
-def get_futures():
+def get_futures(headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Returns the futures table from Yahoo Finance'''
     
-    tables = pd.read_html("https://finance.yahoo.com/commodities")
+    site = "https://finance.yahoo.com/commodities"
+    tables = pd.read_html(requests.get(site, headers=headers).text)
     
     result = tables[0]
     
     return result
 
 
-def get_undervalued_large_caps():
+def get_undervalued_large_caps(headers = {'User-agent': 'Mozilla/5.0'}):
     
     '''Returns the undervalued large caps table from Yahoo Finance'''
     
-    tables = pd.read_html("https://finance.yahoo.com/screener/predefined/undervalued_large_caps?offset=0&count=100")
+    site = "https://finance.yahoo.com/screener/predefined/undervalued_large_caps?offset=0&count=100"
+    
+    tables = pd.read_html(requests.get(site, headers=headers).text)
     
     result = tables[0]
     
