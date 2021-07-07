@@ -277,7 +277,7 @@ def tickers_ftse250(include_company_data = False):
 
 
 
-def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozilla/5.0'}): 
+def get_quote_table(ticker , dict_result = True, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}): 
     
     '''Scrapes data elements found on Yahoo Finance's quote page 
        of input ticker
@@ -313,7 +313,7 @@ def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozil
     return data    
     
     
-def get_stats(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
+def get_stats(ticker, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Scrapes information from the statistics tab on Yahoo Finance 
        for an input ticker 
@@ -340,7 +340,7 @@ def get_stats(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
     return table
 
 
-def get_stats_valuation(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
+def get_stats_valuation(ticker, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Scrapes Valuation Measures table from the statistics tab on Yahoo Finance 
        for an input ticker 
@@ -365,7 +365,7 @@ def get_stats_valuation(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
 
 
 
-def _parse_json(url, headers = {'User-agent': 'Mozilla/5.0'}):
+def _parse_json(url, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     html = requests.get(url=url, headers = headers).text
 
     json_str = html.split('root.App.main =')[1].split(
@@ -521,7 +521,7 @@ def get_financials(ticker, yearly = True, quarterly = True):
     return result
 
 
-def get_holders(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
+def get_holders(ticker, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Scrapes the Holders page from Yahoo Finance for an input ticker 
     
@@ -544,7 +544,7 @@ def get_holders(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
                    
     return table_mapper       
 
-def get_analysts_info(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
+def get_analysts_info(ticker, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Scrapes the Analysts page from Yahoo Finance for an input ticker 
     
@@ -898,7 +898,7 @@ def get_earnings_in_date_range(start_date, end_date):
         return earnings_data
 
 
-def get_currencies(headers = {'User-agent': 'Mozilla/5.0'}):
+def get_currencies(headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Returns the currencies table from Yahoo Finance'''
     
@@ -910,7 +910,7 @@ def get_currencies(headers = {'User-agent': 'Mozilla/5.0'}):
     return result
 
 
-def get_futures(headers = {'User-agent': 'Mozilla/5.0'}):
+def get_futures(headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Returns the futures table from Yahoo Finance'''
     
@@ -922,7 +922,7 @@ def get_futures(headers = {'User-agent': 'Mozilla/5.0'}):
     return result
 
 
-def get_undervalued_large_caps(headers = {'User-agent': 'Mozilla/5.0'}):
+def get_undervalued_large_caps(headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}):
     
     '''Returns the undervalued large caps table from Yahoo Finance'''
     
