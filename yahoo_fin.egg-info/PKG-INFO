@@ -1,0 +1,15 @@
+Metadata-Version: 1.0
+Name: yahoo-fin
+Version: 0.8.9.2
+Summary: Download historical stock prices (daily / weekly / monthly),
+                     realtime-prices, fundamentals data, income statements, 
+                     cash flows, analyst info, current cryptocurrency prices,
+                     option chains, earnings history, and more with yahoo_fin.
+                    
+Home-page: http://theautomatic.net/yahoo_fin-documentation/
+Author: Andrew Treadway
+Author-email: opensourcecoder11@gmail.com
+License: MIT
+Description: UNKNOWN
+Keywords: yahoo finance,stocks,options,fundamentals
+Platform: UNKNOWN

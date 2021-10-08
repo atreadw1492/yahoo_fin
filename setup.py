@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='yahoo_fin',
-      version='0.8.9.1',
+      version='0.8.9.2',
       description="""Download historical stock prices (daily / weekly / monthly),
                      realtime-prices, fundamentals data, income statements, 
                      cash flows, analyst info, current cryptocurrency prices,
