@@ -734,6 +734,10 @@ def get_splits(ticker, start_date = None, end_date = None, index_as_date = True,
     # get JSON response
     data = resp.json()
     
+    # check if there is data available for events
+    if "events" not in data["chart"]["result"][0]:
+        raise AssertionError("There is no data available on stock events, or none have occured") 
+
     # check if there is data available for splits
     if "splits" not in data["chart"]["result"][0]['events']:
         raise AssertionError("There is no data available on stock splits, or none have occured")
