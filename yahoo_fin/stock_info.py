@@ -127,7 +127,7 @@ def tickers_sp500(include_company_data = False):
     '''Downloads list of tickers currently listed in the S&P 500 '''
     # get list of all S&P 500 stocks
     sp500 = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
-    sp500["Symbol"] = sp500["Symbol"].str.replace(".", "-", regex=True)
+    sp500["Symbol"] = sp500["Symbol"].str.replace(".", "-")
 
     if include_company_data:
         return sp500
