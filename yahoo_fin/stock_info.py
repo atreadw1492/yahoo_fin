@@ -21,13 +21,14 @@ except Exception:
     print("""Warning - Certain functionality 
              requires requests_html, which is not installed.
              
-             Install using: 
+             Install using:
              pip install requests_html
-             
+
              After installation, you may have to restart your Python session.""")
 
-    
+
 base_url = "https://query1.finance.yahoo.com/v8/finance/chart/"
+default_headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
 
 def build_url(ticker, start_date = None, end_date = None, interval = "1d"):
     
@@ -64,16 +65,16 @@ def _convert_to_numeric(s):
     if "M" in s:
         s = s.strip("M")
         return force_float(s) * 1_000_000
-    
+
     if "B" in s:
         s = s.strip("B")
         return force_float(s) * 1_000_000_000
-    
+
     return force_float(s)
 
 
 def get_data(ticker, start_date = None, end_date = None, index_as_date = True,
-             interval = "1d", headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+             interval = "1d", headers = default_headers
 ):
     '''Downloads historical stock price data into a pandas data frame.  Interval
        must be "1d", "1wk", "1mo", or "1m" for daily, weekly, monthly, or minute data.
@@ -656,8 +657,17 @@ def get_live_price(ticker):
     
     
     return df.close[-1]
-    
-    
+
+def get_live_prices(ticker_list):
+    base_quotes_url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols='
+    new_url = base_quotes_url + ','.join(ticker_list)
+    resp = requests.get(new_url, headers=default_headers)
+    # get JSON response
+    data = resp.json()
+    results = {result['symbol'] : result['regularMarketPrice'] 
+               for result in data['quoteResponse']['result']}
+    return results
+
 def _raw_get_daily_info(site):
        
     session = HTMLSession()
@@ -737,7 +747,7 @@ def get_top_crypto():
                     
         
 def get_dividends(ticker, start_date = None, end_date = None, index_as_date = True, 
-                  headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+                  headers = default_headers
 ):
     '''Downloads historical dividend data into a pandas data frame.
     
@@ -790,7 +800,7 @@ def get_dividends(ticker, start_date = None, end_date = None, index_as_date = Tr
 
 
 def get_splits(ticker, start_date = None, end_date = None, index_as_date = True,
-               headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+               headers = default_headers
 ):
     '''Downloads historical stock split data into a pandas data frame.
     
@@ -882,7 +892,7 @@ def get_earnings(ticker):
 
 
 ### Earnings functions
-def _parse_earnings_json(url, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+def _parse_earnings_json(url, headers = default_headers
 ):
         resp = requests.get(url, headers = headers)
         
@@ -1024,7 +1034,7 @@ def get_undervalued_large_caps(headers = {'User-agent': 'Mozilla/5.0'}):
     return result
 
 
-def get_quote_data(ticker, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+def get_quote_data(ticker, headers = default_headers
 ):
     
     '''Inputs: @ticker
@@ -1035,7 +1045,7 @@ def get_quote_data(ticker, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Int
     
     site = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + ticker
     
-    resp = requests.get(site, headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+    resp = requests.get(site, headers = default_headers
 )
     
     if not resp.ok:
