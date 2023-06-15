@@ -493,11 +493,13 @@ def get_income_statement(ticker, yearly = True):
             "/financials?p=" + ticker
 
     json_info = _parse_json(income_site)
-    
-    if yearly:
-        temp = json_info["incomeStatementHistory"]["incomeStatementHistory"]
-    else:
-        temp = json_info["incomeStatementHistoryQuarterly"]["incomeStatementHistory"]
+    try:
+        if yearly:
+            temp = json_info["incomeStatementHistory"]["incomeStatementHistory"]
+        else:
+            temp = json_info["incomeStatementHistoryQuarterly"]["incomeStatementHistory"]
+    except:
+        temp = []
     
     return _parse_table(temp)      
         
