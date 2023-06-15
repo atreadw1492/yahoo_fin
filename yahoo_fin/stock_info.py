@@ -292,14 +292,15 @@ def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozil
     
     tables = pd.read_html(requests.get(site, headers=headers).text)
     
-    data = tables[0].append(tables[1])
+    data = pd.concat([tables[0], tables[1]])
+    
 
     data.columns = ["attribute" , "value"]
     
     quote_price = pd.DataFrame(["Quote Price", get_live_price(ticker)]).transpose()
     quote_price.columns = data.columns.copy()
     
-    data = data.append(quote_price)
+    data = pd.concat([data, quote_price])
     
     data = data.sort_values("attribute")
     
@@ -333,7 +334,7 @@ def get_stats(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
     
     table = tables[0]
     for elt in tables[1:]:
-        table = table.append(elt)
+        table = pd.concat([table, elt])
 
     table.columns = ["Attribute" , "Value"]
     
