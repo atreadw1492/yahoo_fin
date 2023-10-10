@@ -13,6 +13,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 # For pretty print
 from pprint import pp
+from io import StringIO
 
 
 try:
@@ -300,7 +301,7 @@ def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozil
 
     site = "https://finance.yahoo.com/quote/" + ticker + "?p=" + ticker
     
-    tables = pd.read_html(requests.get(site, headers=headers).text)
+    tables = pd.read_html(StringIO(requests.get(site, headers=headers).text))
     
     data = pd.concat([tables[0], tables[1]])
     
@@ -656,7 +657,7 @@ def get_live_price(ticker):
     df = get_data(ticker, end_date = pd.Timestamp.today() + pd.DateOffset(10))
     
     
-    return df.close[-1]
+    return df.close.iloc[-1]
 
 def get_live_prices(ticker_list):
     base_quotes_url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols='
