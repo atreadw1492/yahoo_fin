@@ -365,7 +365,7 @@ def get_stats_valuation(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
                  "/key-statistics?p=" + ticker
     
     
-    tables = pd.read_html(requests.get(stats_site, headers=headers).text)
+    tables = pd.read_html(StringIO(requests.get(stats_site, headers=headers).text))
     
     tables = [table for table in tables if "Trailing P/E" in table.iloc[:,0].tolist()]
     
