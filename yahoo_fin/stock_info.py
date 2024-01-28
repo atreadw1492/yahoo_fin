@@ -338,13 +338,13 @@ def get_stats(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
                  "/key-statistics?p=" + ticker
     
 
-    tables = pd.read_html(requests.get(stats_site, headers=headers).text)
+    tables = pd.read_html(StringIO(requests.get(stats_site, headers=headers).text))
     
     tables = [table for table in tables[1:] if table.shape[1] == 2]
-    
-    table = tables[0]
-    for elt in tables[1:]:
-        table = pd.concat([table, elt])
+    table = pd.concat(tables, ignore_index=True)
+    # table = tables[0]
+    # for elt in tables[1:]:
+    #     table = table.append(elt)
 
     table.columns = ["Attribute" , "Value"]
     
