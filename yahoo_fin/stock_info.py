@@ -13,6 +13,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 # For pretty print
 from pprint import pp
+from io import StringIO
 
 
 try:
@@ -287,7 +288,7 @@ def tickers_ftse250(include_company_data = False):
     return sorted(table.Ticker.tolist())
     
 
-
+    
 
 def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozilla/5.0'}): 
     
@@ -300,17 +301,16 @@ def get_quote_table(ticker , dict_result = True, headers = {'User-agent': 'Mozil
 
     site = "https://finance.yahoo.com/quote/" + ticker + "?p=" + ticker
     
-    tables = pd.read_html(requests.get(site, headers=headers).text)
-    
-    data = pd.concat([tables[0], tables[1]])
-    
+    tables = pd.read_html(StringIO(requests.get(site, headers=headers).text))
+
+    data = pd.concat([tables[0], tables[1]], axis=0)
 
     data.columns = ["attribute" , "value"]
     
     quote_price = pd.DataFrame(["Quote Price", get_live_price(ticker)]).transpose()
     quote_price.columns = data.columns.copy()
     
-    data = pd.concat([data, quote_price])
+    data = pd.concat([data, quote_price], axis=0)
     
     data = data.sort_values("attribute")
     
@@ -338,13 +338,13 @@ def get_stats(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
                  "/key-statistics?p=" + ticker
     
 
-    tables = pd.read_html(requests.get(stats_site, headers=headers).text)
+    tables = pd.read_html(StringIO(requests.get(stats_site, headers=headers).text))
     
     tables = [table for table in tables[1:] if table.shape[1] == 2]
-    
-    table = tables[0]
-    for elt in tables[1:]:
-        table = pd.concat([table, elt])
+    table = pd.concat(tables, ignore_index=True)
+    # table = tables[0]
+    # for elt in tables[1:]:
+    #     table = table.append(elt)
 
     table.columns = ["Attribute" , "Value"]
     
@@ -365,7 +365,7 @@ def get_stats_valuation(ticker, headers = {'User-agent': 'Mozilla/5.0'}):
                  "/key-statistics?p=" + ticker
     
     
-    tables = pd.read_html(requests.get(stats_site, headers=headers).text)
+    tables = pd.read_html(StringIO(requests.get(stats_site, headers=headers).text))
     
     tables = [table for table in tables if "Trailing P/E" in table.iloc[:,0].tolist()]
     
