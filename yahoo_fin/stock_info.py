@@ -254,7 +254,7 @@ def tickers_nifty50(include_company_data = False, headers = {'User-agent': 'Mozi
 def tickers_niftybank():
     ''' Currently traded tickers on the NIFTY BANK, India '''
     
-    niftybank = ['AXISBANK', 'KOTAKBANK', 'HDFCBANK', 'SBIN', 'BANKBARODA', 'INDUSINDBK', 'PNB', 'IDFCFIRSTB', 'ICICIBANK', 'RBLBANK', 'FEDERALBNK', 'BANDHANBNK']
+    niftybank = ['AXISBANK', 'KOTAKBANK', 'HDFCBANK', 'SBIN', 'BANKBARODA', 'INDUSINDBK', 'PNB', 'IDFCFIRSTB', 'ICICIBANK', 'AUBANK', 'FEDERALBNK', 'BANDHANBNK']
     
     return niftybank
 
